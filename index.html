@@ -1,27 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>B站直播间语音播报</title>
+<title>B站直播间弹幕播报</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="utf-8">
 </head>
 <body>
 <div align="center">
-直播间房号：<input id="Room_ID" style="text-align:center;"/>
-<button id="Bind">绑定&改绑</button>
+直播间房号：<input id="Room_Number" style="text-align:center;" oninput='value=value.replace(/[^\d]/g,"")'/>
+<button id="Bind_Room_Number">绑定</button>
 <br>
 <br>
-播报语速：<input id="SOS" style="text-align:center;" value="2"/><br>
-播报音调：<input id="Tone" style="text-align:center;" value="2"/>
-<br>
-<br>
-<button id="Seve">保存&应用</button>
-<br>
-<button id="Run">开始播报</button>
-<br>
-<button id="Close">停止播报</button>
-<br>
-<br>
+<button id="Start">开始监听</button>
+<br><br>
 <textarea id="Content" rows="70" cols="50" readonly></textarea>
 </div>
 </body>
@@ -79,24 +70,40 @@ function Decode(Blob) {
     Reader.readAsArrayBuffer(Blob);
   })
 };
-  ws = new WebSocket("wss://broadcastlv.chat.bilibili.com:2245/sub");
-  ws.onopen = function() {
-    ws.send(Encode(JSON.stringify({
+var Room_Bind = false, IPPort_Bind = false, wss = new WebSocket("wss://broadcastlv.chat.bilibili.com:2245/sub");
+/*
+ws = new WebSocket("");
+ws.onopen = function(){
+ws.send(JSON.stringify({
+"Head": {
+"Code": true
+},
+"Body": {
+"User": Body.info[2][1],
+"Message": Body.info[1]
+},
+"Foot": {}
+}))};*/
+  wss.onopen = function() {
+    wss.send(Encode(JSON.stringify({
       "roomid": Room_Number
     }), 7));
     setInterval(function() {
       ws.send(Encode("", 2));
-    }, 800);
+    }, 1000);
   }
 
-  ws.onmessage = async function(Event) {
+  wss.onmessage = async function(Event) {
     const Packet = await Decode(Event.data);
     switch (Packet.Code) {
       case 5:
         Packet.Body.forEach(function(Body) {
           switch (Body.cmd) {
             case 'DANMU_MSG':
-              Callback(JSON.stringify({"User": Body.info[2][1] ,"Message": Body.info[1]}))
+    Callback(JSON.stringify({
+"User": Body.info[2][1] ,
+"Message": Body.info[1]
+    }))
               break;
           }
         })
@@ -105,67 +112,22 @@ function Decode(Blob) {
   }
 }
 
-var Bind;
-var Room_ID;
-var Run = false;
-var SOS = 2;
-var Tone = 2;
-document.getElementById("Bind").addEventListener("click", function(){
-if(Run == false){
-if(document.getElementById("Room_ID").value){
-alert("绑定成功");
-Room_ID = Number(document.getElementById("Room_ID").value);
-Bind = true;
+document.getElementById("Bind_Room_Number").addEventListener("click", function(){
+if(document.getElementById("Room_Number").value){
+Room_Bind = true
+alert("成功绑定直播间")
 } else {
-alert("绑定失败，直播间房号不能为空");
-}
-} else {
-alert("请先关闭弹幕播报，在更改新的直播间房号");
-}});
-document.getElementById("Seve").addEventListener("click", function(){
-if(Run == false){
-if(document.getElementById("SOS").value){
-SOS = document.getElementById("SOS").value;
-alert("语速更改成功")
-} else {
-alert("语速不能为空");
-};
-if(document.getElementById("Tone").value){
-Tone = document.getElementById("Tone").value;
-alert("音调更改成功")
-} else {
-alert("音调不能为空")
-}
-} else {
-alert("请先关闭弹幕播报，在更改新的直播间房号")
-}});
-
-document.getElementById("Run").addEventListener("click", function(){
-if(Bind){
-if(Run == false){
-alert("已开始播报")
-Run = true;
-DanMu(Room_ID, function(Object){
-document.getElementById("Content").value += "【" + JSON.parse(Object).User + "】：" + JSON.parse(Object).Message + "\n";
-const Message = new SpeechSynthesisUtterance(JSON.parse(Object).User + "说" + JSON.parse(Object).Message);
-Message.rate = SOS;
-Message.pitch = Tone;
-speechSynthesis.speak(Message)
-})
-} else {
-alert("当前已经是弹幕播报状态")
-}} else {
-alert("请设置直播间房号进行绑定");
+alert("房间号不能为空");
 }})
 
-document.getElementById("Close").addEventListener("click", function(){
-if(Run == true){
-alert("已关闭弹幕播报功能");
-Run = false;
-ws.close();
-} else {
-alert("当前已经是停止弹幕播报状态")
-}
+document.getElementById("Start").addEventListener("click", function(){
+if(Room_Bind == true){
+alert("成功开启监听服务")
+DanMu(Number(document.getElementById("Room_Number").value), function(Object){
+document.getElementById("Content").value += "【" + JSON.parse(Object).User + "】：" + JSON.parse(Object).Message + "\n";
 })
+}else {
+alert("请绑定直播间");
+}})
 </script>
 </html>
